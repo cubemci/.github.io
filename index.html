@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <title>TimeCube</title>
+      <link rel="icon" type="image/gif" sizes="16x16" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADGUlEQVQ4y4VTbWhbZRg973PvfXOXtDeJuc2SdK1LQtK6jqKdjO6j1q+BY8rGJs3W2U4QYdTK6kTGoIITxJ/+0vn1R2bDnL+mCAPdKFMEN52ZVje1WyO0S5y6kjYfNzf3vq8/nFNGqc+vh8N5Hs45cIBl5t4d+/ety4xvX47DlgJ7d41wKcVrQogRwUMCjF5xhHrk4odH3Nu5dDuwceCZWLOunNm2Pj3CAGiqQlvuaX3Rq7knewbGg8s+6MuMbjZWaF8/urFrU2Sl+RUA2C5EbGXg4tYNyW2moZ3rGRjv/u+N8s/Sv/vZ0YBpTpjR1ia74bz83aX8c/OV2guO0oRmrnVFwoYnEvZvrVr2kHf1hpnCD2enbmXwwN6xO0E835lajcKflez0XP1Jr5gLMOlet3gUpKohKs863elVH3mDwf5vpuYsCwF/LnvI/tsCk8myJaG6Dbs9yAd9mn2hrtzRq3LtF92jTivV4k6d0491W/bP5ueqdaumExrt/2YgRVyA8O3Mwlg63nJw+32J2Jq2wEm7oXzP7WLRDDa9k+68yw7FYntmf/v9VUgBSNEBAOpNH0mnUceCYuTf//jzU62m3+rsiO/yKKHHblRR9wVbTvxUrH62aCsnOPAEkw4YsTSAT24qQMKp16BTPcgV+lS6zhtNTHT/PHNt+urMtclkSO/zc7zN5eIk00MGpAtGSuqWAillwqc5CFDpWO/aJMXboo6iUJYxekS6DS1i+t57MOA9mC8s9OWuss0WGBhRBwDQ/XvGGCmU6F0bx+MPraNEe+y0ptLdw4OZMQYQk642OpQ5zDXqioZ9px5e38bWpNtBqpIGALb3wEu8JxU7Hwr6u3NXbuDslcU/GNFRqPx1b+nyF/Pz5UIgZAwJ1z0gpXiqIx03Uqm4rFXqk7lfG1sYAEx8cJw5gm1yBPZfL1k7L8+WV1wq1mrMXiBWKbi67tFaV4W1WFu01GwYxzyEtw4NZ6aWLNO7E8dNW2K4VGs8nS9WOkmUEY605LjO3yRi2cNDuxf/t40AcDSbpZpL/QKwmRBfPr9vUC7F+wvVRi1O+4HXtQAAAABJRU5ErkJggg=="/>
+      <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+      <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    </head>
+    <style>
+      .base {
+        margin: 0 auto;
+      }
+      td {
+        text-align: center;
+      }
+      </style>
+
+  <body>
+    <table class="base">
+      <tr>
+        <td colspan="2">
+          <h1>TimeCube Interface</h1>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <label for="id_dt_start">Choose a start time:</label>
+        </td>
+        <td>
+          <input type="datetime-local" id="id_dt_start" name="dt_start"> <!-- py-input="update_pie_chart()"> -->
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <label for="id_dt_end">Choose an end time:</label>
+        </td>
+        <td>
+          <input type="datetime-local" id="id_dt_end" name="dt_end"> <!-- py-input="update_pie_chart()"> -->
+        </td>
+      </tr>
+      <tr height = 10px></tr>
+      <tr>
+        <td colspan="2">
+          <div id="id_div_time_info"></div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <button id="id_button_refresh" py-click="update_chart()">Refresh Chart</button>
+        </td>
+      </tr>
+    </table>
+    <br>
+    <table class="base">
+    <tr>
+      <td colspan="2">
+        <div id="id_div_status"></div>
+      </td>
+    </tr>
+    <tr>
+      <td style = "text-align:right;">
+        <select id = "id_select_label">
+          <option id = "id_option_0" value="0"></option>
+          <option id = "id_option_1" value="1"></option>
+          <option id = "id_option_2" value="2"></option>
+          <option id = "id_option_3" value="3"></option>
+          <option id = "id_option_4" value="4"></option>
+          <option id = "id_option_5" value="5"></option>
+        </select>
+      </td>
+      <td style="text-align:left;">
+        <button id="id_button_calibrate" cursor="text" py-click="calibrate()">Calibrate Label</button>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div id="id_div_info"></div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div id="id_plot"></div>
+      </td>
+    </tr>
+  </table>
+
+<py-config type="json">
+    {
+      "packages": ["numpy", "matplotlib"]
+    }
+</py-config>
+
+<py-script>
+import matplotlib.pyplot as plt
+import numpy as np
+from datetime import datetime
+import json
+import pyodide
+import pyodide.ffi
+from pyodide.http import pyfetch
+from pyscript import Element
+from typing import Optional, Any
+
+def clear_write(el, obj=None):
+  # Clears the element before writing to it because pyscript is buggy
+  for child in el.element.children:
+    el.element.removeChild(child)
+  el.clear()
+  if obj:
+    el.write(obj)
+
+labels = {0: 'Phone Call', 1: 'Coffee', 2: 'Brain Storming', 3: 'Web', 4: 'Message', 5: 'Meeting'}
+colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']
+users = {'BC 30 ED 2B': 'Lukas Eberharter', 'A3 AC 08 92': 'Gerald Edenstrasser'}
+for index in range(6):
+  Element(f"id_option_{index}").write(labels[index])
+
+async def get_data(path: str) -> dict:
+  """
+  Our function to retrieve data from the database.
+  """
+
+  url = f'https://cubemci-default-rtdb.europe-west1.firebasedatabase.app/{path}.json'
+
+  response = await pyfetch(url, method='GET', mode = 'cors')
+  if not response or not response.ok:
+    return None
+  #return (await response.json(), response.headers.get('Date'))
+  return await response.json()
+
+async def set_data(path: str, data: dict):
+  url = f'https://cubemci-default-rtdb.europe-west1.firebasedatabase.app/{path}.json'
+  data_str = json.dumps(data)
+  response = await pyfetch(url, method='PATCH', body = data_str)
+  return await response.json()
+
+async def add_data(path: str, data: dict):
+  url = f'https://cubemci-default-rtdb.europe-west1.firebasedatabase.app/{path}.json'
+  data_str = json.dumps(data)
+  response = await pyfetch(url, method='POST', body = data_str)
+  return await response.json()
+
+
+
+#################################################
+# Stolen from https://hackmd.io/@HaoZeng/H1DUzTdpH 
+
+def count(item, time):
+  count=0
+  for i in time[(item + 1):]:
+      if i != 0:
+          count = count+1
+  return count
+            
+def format_duration(sec):
+  time = [0, 0, 0, 0, 0]
+  time[4] = sec % 60
+  time[3] = int(sec / 60) % 60
+  time[2] = int(int(sec / 60) / 60) % 24
+  time[1] = int(int(int(sec / 60) / 60) / 24)%365
+  time[0] = int(int(int(int(sec /60) / 60) /24) /365)
+  time[4] = 0.0 # delete seconds
+  ans = ''
+  for i in range(0,len(time)):
+      m = ''
+      if time[i] > 0:
+          #m = str(time[i])
+          m = f'{time[i]:.5g}'
+          if i == 0:
+              m = m + ' year' if time[i] == 1 else m + ' years'
+          if i == 1:
+              m = m + ' day' if time[i] == 1 else m + ' days'
+          if i == 2:
+              m = m + ' hour' if time[i] == 1 else m + ' hours'
+          if i == 3:
+              m = m + ' minute' if time[i] == 1 else m + ' minutes'
+          if i == 4:
+              m = m + ' second' if time[i] == 1 else m + ' seconds'
+      if i != 4 and time[i]>0:
+          c = count(i, time)
+          if c > 0:
+              m = m + ' and 'if c==1 else m + ', '
+      ans = ans + m
+  return ans
+
+####################################################
+# init chart
+fig = plt.figure(figsize=[6, 12])
+ax = fig.add_axes([0.02, 0.52, 0.94, 0.44])
+ax.set_yticks([])
+ax.set_xticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+ax.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'])
+# char bar container
+# see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.barh.html
+cbc = ax.barh(np.arange(6), np.ones((6,))/6, height = 0.85,
+  color = colors, edgecolor = '#bbbbbb', linewidth = 1)
+bl = []
+for i in range(6):
+  txt = ax.text(0.05, i, '', va='center', backgroundcolor='#ffffff55')
+  bl.append(txt)
+ax.set_ylim(-0.5, 5.5)
+ax.set_xlim(0,1)
+ax.set_xlabel('Relative Time')
+
+### pie chart
+ax2 = fig.add_axes([0.02, 0.03, 0.94, 0.44])
+ax2.axis('off')
+
+########################
+
+async def update_chart():
+  if False:
+  ### Upload fake user event
+    #card_uid = 'A3 AC 08 92' # Geri
+    card_uid = 'BC 30 ED 2B' # Luggi
+    data = {'server_timestamp': {'.sv': 'timestamp'}, 'user_uid': card_uid}
+    await add_data('IMU_LSM6DS3/user', data)
+  try:
+    input_start_time = int(1000*datetime.timestamp(datetime.strptime(Element('id_dt_start').value, '%Y-%m-%dT%H:%M')))
+    input_end_time = int(1000*datetime.timestamp(datetime.strptime(Element('id_dt_end').value, '%Y-%m-%dT%H:%M')))
+  except Exception as e: # Only if both times are valid
+    clear_write(Element('id_div_time_info'), 'Invalid date and time input')
+    clear_write(Element('id_plot'))
+    return
+
+  data = await get_data('IMU_LSM6DS3')
+
+  duration_arr = []
+  state_arr = []
+  current_timestamp = -1 # initial timestamp = not yet set
+  current_state = -1 # initial state = not yet set
+  data = data['test_series_1']
+  # go over all events in ascending order
+  for (key, val) in sorted(data.items()):
+      s_, t_ = val['state'], val['server_timestamp']
+      # keep  in mind that we simply ignore the events outside the set time
+      # this might not be the expected behavior!
+      if t_ < input_start_time or t_ > input_end_time:
+        continue
+
+      # if current_state is valid and has changed
+      if current_state >= 0 and s_ != current_state:
+        state_arr.append(current_state)
+        duration_arr.append(t_-current_timestamp)
+
+      current_state = s_
+      current_timestamp = t_
+
+  # convert to numpy arrays for simple and fast math
+  state = np.array(state_arr)
+  duration = np.array(duration_arr)
+  # holds the total duration for each state
+  dur_per_state = np.zeros( (6,) )
+  for i in range(6):
+      dur_per_state[i] = np.sum(duration[state == i])
+  # relative duration per state
+  dur_rel = dur_per_state / np.sum(dur_per_state)
+
+  for i in range(6):
+    cbc.patches[i].set_width(dur_rel[i])
+    durstr = format_duration(dur_per_state[i]/1000)
+    label = f'{labels[i]} {100*dur_rel[i]:2.2g}% ({durstr})'
+    bl[i].set_text(label)
+
+  ax2.clear()
+  #ax2.pie(dur_rel[size_filter], explode=None, labels=[str(i) for i,f in enumerate(size_filter) if f], autopct='%1.1f%%', shadow=True, startangle=90)
+  ax2.pie(dur_rel, explode=None, labels=[labels[i] for i in range(6)], autopct='%1.1f%%', startangle=90)
+  ax2.relim()
+  ax2.autoscale_view()
+
+  fig.canvas.draw()
+  clear_write(Element('id_div_time_info'))
+  clear_write(Element('id_plot'), fig)
+
+async def calibrate():
+  selected_index = int(Element('id_select_label').value)
+  data = {'status': 'set_vector', 'vector_index': selected_index}
+  set_ret = await set_data('IMU_LSM6DS3/arduino_comm', data)
+  await update()
+
+async def update():
+  arduino_comm = await get_data('IMU_LSM6DS3/arduino_comm')
+  if arduino_comm['status'] == 'ready':
+    users_data = await get_data('IMU_LSM6DS3/user')
+    user_uid = users_data[max(users_data)]['user_uid']
+    Element("id_div_status").write(f'User: {users[user_uid]}, Status: {labels[arduino_comm["current_index"]]}')
+  elif arduino_comm['status'] == 'invalid_indices':
+    invalid_indices = [int(x) for x in arduino_comm['invalid_indices'].split(',')]
+    #labels_reversed = {v: k for (k,v) in labels.items()}
+    invalid_labels = ', '.join([labels[x] for x in invalid_indices])
+    status_html = pyscript.HTML(f'Contradiction between these labels:<br>{invalid_labels}')
+    clear_write(Element("id_div_status"), status_html)
+  elif arduino_comm['status'] == 'set_vector':
+    Element("id_div_status").write(f'Waiting for Arduino ...')
+  else:
+    pass
+
+js.setInterval(pyodide.ffi.to_js(update), 2000)
+</py-script>
+</body>
+</html>
